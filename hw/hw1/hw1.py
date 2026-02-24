@@ -1,13 +1,18 @@
 """
-Exercise 1 Push the Ball assignment
-
-:Author: Lukas Rustler
+Template for HRO HW1
 """
+import os
+import sys
+try:
+    from icub_pybullet.pycub import pyCub
+except:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+    from icub_pybullet.pycub import pyCub
+
+import time
 import numpy as np
-from icub_pybullet.pycub import pyCub, Pose
 
-
-def push_the_ball(client: pyCub) -> int:
+def push_the_ball(client):
     """
     Function to push the ball from the table with joint control for HW1.
 
@@ -48,17 +53,29 @@ def push_the_ball(client: pyCub) -> int:
     return 0
 
 
-def main():
-    """
-    Help main class
 
-    :return:
-    :rtype:
-    """
+def evaluate(client):
+    c = client.getClosestPoints(client.other_objects[1][0], client.other_objects[2][0], np.Inf)
+    min_dist = np.Inf
+    for _ in c:
+        d = _[client.contactPoints["DISTANCE"]]
+        if d < min_dist:
+            min_dist = d
+    min_dist = np.round(min_dist, 3)
+    score = np.round(np.min([min_dist*2, 5]), 2)
+    client.logger.info(f"You moved the ball {min_dist}m away from the table. Your score is {score}.")
+
+
+if __name__ == "__main__":
     # load the robot with correct world/config
-    client = pyCub(config="exercise_1.yaml")
+    client = pyCub(config="hw1.yaml")
 
     push_the_ball(client)
 
-if __name__ == "__main__":
-    main()
+    start_step = client.steps_done
+    while client.is_alive():
+        client.update_simulation()
+        if int((client.steps_done - start_step) / (1/client.config.simulation_step)) >= 1:
+            break
+
+    evaluate(client)
